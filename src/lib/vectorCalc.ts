@@ -5,12 +5,34 @@ export interface ScenarioInput {
     sleep: number; // 1-10
     stress: number; // 1-10
     symptoms: {
-        cramps: number; // 0-1
-        backPain: number; // 0-1
-        headache: number; // 0-1
-        bloating: number; // 0-1
-        others: number; // 0-1
+        // Inflammatory / Pain
+        cramps: number;
+        back_pain: number;
+        headache: number;
+        joint_pain: number;
+        breast_tenderness: number;
+
+        // Gastrointestinal
+        nausea: number;
+        vomiting: number;
+        bloating: number;
+        diarrhea: number;
+        constipation: number;
+
+        // Fatigue / Cognitive
+        fatigue: number;
+        dizziness: number;
+        brain_fog: number;
+
+        // Emotional
+        mood_swings: number;
+        anxiety: number;
+        irritability: number;
+        low_motivation: number;
+        [key: string]: number; // keep open for any missing generic symptoms
     };
+    symptom_severity?: number; // 0-3
+    memory_text?: string;
 }
 
 export interface StateVector {
@@ -21,27 +43,30 @@ export interface StateVector {
     inflammationLikelihood: number;
 }
 
+export interface VectorCalculationResult {
+    vector: StateVector;
+}
+
 function clamp(value: number): number {
     return Math.max(0, Math.min(1, value));
 }
 
-export function computeStateVector(input: ScenarioInput): StateVector {
+export function computeStateVector(input: ScenarioInput): VectorCalculationResult {
     const E = input.energy / 10;
     const S = input.sleep / 10;
     const St = input.stress / 10;
 
-    // Inflammation
-    const inflammation =
-        input.symptoms.cramps * 0.3 +
-        input.symptoms.backPain * 0.2 +
-        input.symptoms.headache * 0.2 +
-        input.symptoms.bloating * 0.1 +
-        input.symptoms.others * 0.1;
+    let inflammation = 0;
+    if (input.symptoms) {
+        inflammation =
+            (input.symptoms.cramps || 0) * 0.3 +
+            (input.symptoms.back_pain || 0) * 0.2 +
+            (input.symptoms.headache || 0) * 0.2 +
+            (input.symptoms.bloating || 0) * 0.1 +
+            (input.symptoms.joint_pain || 0) * 0.1 +
+            (input.symptoms.breast_tenderness || 0) * 0.1;
+    }
 
-    // Energy Stability
-    let energyStability = 0.6 * E + 0.4 * S - 0.3 * St;
-
-    // Emotional Volatility
     let moodScore = 0.4;
     switch (input.mood) {
         case 'Calm': moodScore = 0.2; break;
@@ -49,6 +74,8 @@ export function computeStateVector(input: ScenarioInput): StateVector {
         case 'Irritable': moodScore = 0.7; break;
         case 'Severe mood swings': moodScore = 0.9; break;
     }
+
+    let energyStability = 0.6 * E + 0.4 * S - 0.3 * St;
     let emotionalVolatility = moodScore + (1 - S) * 0.3;
 
     // Hormones
@@ -75,10 +102,12 @@ export function computeStateVector(input: ScenarioInput): StateVector {
     }
 
     return {
-        estrogenInfluence: clamp(estrogen),
-        progesteroneInfluence: clamp(progesterone),
-        energyStability: clamp(energyStability),
-        emotionalVolatility: clamp(emotionalVolatility),
-        inflammationLikelihood: clamp(inflammation),
+        vector: {
+            estrogenInfluence: clamp(estrogen),
+            progesteroneInfluence: clamp(progesterone),
+            energyStability: clamp(energyStability),
+            emotionalVolatility: clamp(emotionalVolatility),
+            inflammationLikelihood: clamp(inflammation),
+        }
     };
 }

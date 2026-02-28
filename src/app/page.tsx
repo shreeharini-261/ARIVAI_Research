@@ -16,12 +16,13 @@ export default function Home() {
         stress: 4,
         cycleDay: 14,
         symptoms: {
-            cramps: 0,
-            backPain: 0,
-            headache: 0,
-            bloating: 0,
-            others: 0,
-        }
+            cramps: 0, back_pain: 0, headache: 0, joint_pain: 0, breast_tenderness: 0,
+            nausea: 0, vomiting: 0, bloating: 0, diarrhea: 0, constipation: 0,
+            fatigue: 0, dizziness: 0, brain_fog: 0,
+            mood_swings: 0, anxiety: 0, irritability: 0, low_motivation: 0,
+        },
+        symptom_severity: 0,
+        memory_text: ""
     });
 
     const [config, setConfig] = useState<any>({
@@ -53,7 +54,7 @@ export default function Home() {
         const E = scenarioInput.energy / 10;
         const S = scenarioInput.sleep / 10;
         const St = scenarioInput.stress / 10;
-        const infl = scenarioInput.symptoms.cramps * 0.3 + scenarioInput.symptoms.backPain * 0.2 + scenarioInput.symptoms.headache * 0.2 + scenarioInput.symptoms.bloating * 0.1 + scenarioInput.symptoms.others * 0.1;
+        const infl = (scenarioInput.symptoms.cramps || 0) * 0.3 + (scenarioInput.symptoms.back_pain || 0) * 0.2 + (scenarioInput.symptoms.headache || 0) * 0.2 + (scenarioInput.symptoms.bloating || 0) * 0.1 + (scenarioInput.symptoms.joint_pain || 0) * 0.1 + (scenarioInput.symptoms.breast_tenderness || 0) * 0.1;
         const es = 0.6 * E + 0.4 * S - 0.3 * St;
 
         let moodScore = 0.4;
@@ -211,22 +212,69 @@ export default function Home() {
                         <input type="range" className="form-range" min="1" max="10" value={scenarioInput.stress} onChange={e => setScenarioInput({ ...scenarioInput, stress: parseInt(e.target.value) })} />
                     </div>
 
+                    <div className="form-group" style={{ marginTop: "16px" }}>
+                        <label className="form-label">Symptom Severity (0-3: None, Mild, Mod, Severe)</label>
+                        <input type="range" className="form-range" min="0" max="3" value={scenarioInput.symptom_severity} onChange={e => setScenarioInput({ ...scenarioInput, symptom_severity: parseInt(e.target.value) })} />
+                    </div>
+
                     <div className="form-group" style={{ marginTop: "24px" }}>
                         <label className="form-label mb-2">Symptoms</label>
-                        <div className="checkbox-grid">
-                            <label className="checkbox-label">
-                                <input type="checkbox" name="cramps" checked={scenarioInput.symptoms.cramps === 1} onChange={handleSymptomChange} /> Cramps
-                            </label>
-                            <label className="checkbox-label">
-                                <input type="checkbox" name="backPain" checked={scenarioInput.symptoms.backPain === 1} onChange={handleSymptomChange} /> Back Pain
-                            </label>
-                            <label className="checkbox-label">
-                                <input type="checkbox" name="headache" checked={scenarioInput.symptoms.headache === 1} onChange={handleSymptomChange} /> Headache
-                            </label>
-                            <label className="checkbox-label">
-                                <input type="checkbox" name="bloating" checked={scenarioInput.symptoms.bloating === 1} onChange={handleSymptomChange} /> Bloating
-                            </label>
+
+                        <div style={{ marginBottom: "12px" }}>
+                            <strong style={{ fontSize: "0.85rem", color: "var(--accent-pink)" }}>Inflammatory / Pain</strong>
+                            <div className="checkbox-grid" style={{ marginTop: "6px" }}>
+                                {['cramps', 'back_pain', 'headache', 'joint_pain', 'breast_tenderness'].map(sym => (
+                                    <label key={sym} className="checkbox-label" style={{ textTransform: 'capitalize' }}>
+                                        <input type="checkbox" name={sym} checked={scenarioInput.symptoms[sym as keyof typeof scenarioInput.symptoms] === 1} onChange={handleSymptomChange} /> {sym.replace('_', ' ')}
+                                    </label>
+                                ))}
+                            </div>
                         </div>
+
+                        <div style={{ marginBottom: "12px" }}>
+                            <strong style={{ fontSize: "0.85rem", color: "var(--accent-pink)" }}>Gastrointestinal</strong>
+                            <div className="checkbox-grid" style={{ marginTop: "6px" }}>
+                                {['nausea', 'vomiting', 'bloating', 'diarrhea', 'constipation'].map(sym => (
+                                    <label key={sym} className="checkbox-label" style={{ textTransform: 'capitalize' }}>
+                                        <input type="checkbox" name={sym} checked={scenarioInput.symptoms[sym as keyof typeof scenarioInput.symptoms] === 1} onChange={handleSymptomChange} /> {sym.replace('_', ' ')}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div style={{ marginBottom: "12px" }}>
+                            <strong style={{ fontSize: "0.85rem", color: "var(--accent-pink)" }}>Fatigue / Cognitive</strong>
+                            <div className="checkbox-grid" style={{ marginTop: "6px" }}>
+                                {['fatigue', 'dizziness', 'brain_fog'].map(sym => (
+                                    <label key={sym} className="checkbox-label" style={{ textTransform: 'capitalize' }}>
+                                        <input type="checkbox" name={sym} checked={scenarioInput.symptoms[sym as keyof typeof scenarioInput.symptoms] === 1} onChange={handleSymptomChange} /> {sym.replace('_', ' ')}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <strong style={{ fontSize: "0.85rem", color: "var(--accent-pink)" }}>Emotional</strong>
+                            <div className="checkbox-grid" style={{ marginTop: "6px" }}>
+                                {['mood_swings', 'anxiety', 'irritability', 'low_motivation'].map(sym => (
+                                    <label key={sym} className="checkbox-label" style={{ textTransform: 'capitalize' }}>
+                                        <input type="checkbox" name={sym} checked={scenarioInput.symptoms[sym as keyof typeof scenarioInput.symptoms] === 1} onChange={handleSymptomChange} /> {sym.replace('_', ' ')}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="form-group" style={{ marginTop: "24px" }}>
+                        <label className="form-label mb-2">Historical Memory (Last 3 Days Summary)</label>
+                        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "8px" }}>Enter any relevant user data from the previous 3 days (mood trends, sleep patterns, recurring symptoms, stress changes, etc.).</p>
+                        <textarea
+                            className="form-input"
+                            style={{ minHeight: "80px", resize: "vertical", paddingTop: "8px" }}
+                            placeholder="Past 3 days: Energy gradually decreasing from 7 to 4. Sleep poor. Back pain recurring. Stress increasing due to exams."
+                            value={scenarioInput.memory_text}
+                            onChange={e => setScenarioInput({ ...scenarioInput, memory_text: e.target.value })}
+                        />
                     </div>
                 </div>
 

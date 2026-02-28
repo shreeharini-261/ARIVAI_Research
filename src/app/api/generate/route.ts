@@ -8,7 +8,8 @@ export async function POST(req: NextRequest) {
         const { scenarioInput, config, strategy, generateAllStrategies } = body;
 
         // 1. Compute state vector
-        const vector = computeStateVector(scenarioInput);
+        const calculationResult = computeStateVector(scenarioInput);
+        const vector = calculationResult.vector;
 
         // Prepare Database Database Transaction
         const scenario = await prisma.scenario.create({
@@ -21,6 +22,8 @@ export async function POST(req: NextRequest) {
                 symptoms_json: scenarioInput.symptoms,
                 cycle_day: scenarioInput.cycleDay || null,
                 cycle_length: scenarioInput.cycleLength || 28,
+                symptom_severity: scenarioInput.symptom_severity || null,
+                memory_text: scenarioInput.memory_text || null,
                 previous_sleep_avg: scenarioInput.previousSleepAvg || null,
                 previous_stress_avg: scenarioInput.previousStressAvg || null,
                 state_vector: {
@@ -54,8 +57,10 @@ export async function POST(req: NextRequest) {
 
         for (const currentStrategy of strategiesToRun) {
             let prompt = "";
+            let basePrompt = "";
+
             if (currentStrategy === "Generic") {
-                prompt = `System: You are a general wellness assistant.
+                basePrompt = `System: You are a general wellness assistant.
 User: User reports:
 Mood: ${scenarioInput.mood}
 Energy: ${scenarioInput.energy}/10
@@ -63,7 +68,7 @@ Sleep: ${scenarioInput.sleep}/10
 Symptoms: ${symptomsList}
 Provide helpful advice.`;
             } else if (currentStrategy === "Phase-Aware") {
-                prompt = `System: You are a menstrual health–aware AI assistant. Ground recommendations in hormonal physiology.
+                basePrompt = `System: You are a menstrual health–aware AI assistant. Ground recommendations in hormonal physiology.
 User: Menstrual Phase: ${scenarioInput.phase}
 Mood: ${scenarioInput.mood}
 Energy: ${scenarioInput.energy}/10
@@ -71,17 +76,23 @@ Sleep: ${scenarioInput.sleep}/10
 Symptoms: ${symptomsList}
 Explain biological context briefly and give structured recommendations.`;
             } else if (currentStrategy === "Phase + Memory-Aware") {
-                prompt = `System: You are a menstrual health AI that considers historical patterns and hormonal cycles.
-User: Menstrual Phase: ${scenarioInput.phase}
+                basePrompt = `System: You are a menstrual health AI assistant. Use both current state and historical trends.
+User:
+Menstrual Phase: ${scenarioInput.phase}
+
 Current State:
 Mood: ${scenarioInput.mood}
 Energy: ${scenarioInput.energy}/10
 Sleep: ${scenarioInput.sleep}/10
+Stress: ${scenarioInput.stress}/10
 Symptoms: ${symptomsList}
-Historical Pattern: Context indicates recurrent symptoms in this phase previously.
-Provide biologically grounded and context-adaptive recommendations.`;
+
+Provide:
+1. Brief physiological interpretation
+2. Trend-aware recommendations
+3. Avoid generic advice`;
             } else if (currentStrategy === "Phase + State Vector") {
-                prompt = `System: You are an advanced menstrual health AI system. Use the provided biological state profile quantitatively. Recommendations must align with the physiological indicators.
+                basePrompt = `System: You are an advanced menstrual health AI system. Use the provided biological state profile quantitatively. Recommendations must align with the physiological indicators.
 User: Menstrual Phase: ${scenarioInput.phase}
 Biological State Profile:
 Estrogen Influence: ${vector.estrogenInfluence.toFixed(3)}
@@ -94,6 +105,13 @@ Provide:
 1. Brief physiological interpretation (2–3 sentences).
 2. Adaptive recommendations explicitly aligned with the state indicators.
 3. Avoid generic advice.`;
+            }
+
+            // Memory injection for all strategies
+            if (scenarioInput.memory_text && scenarioInput.memory_text.trim() !== '') {
+                prompt = basePrompt + `\n\nRecent Context:\n${scenarioInput.memory_text}`;
+            } else {
+                prompt = basePrompt;
             }
 
             // Call Gemini via REST API
@@ -136,6 +154,7 @@ Provide:
                     seed: config.seed ? parseInt(config.seed) : null,
                     prompt_text: prompt,
                     output_text: outputText,
+                    memory_snapshot: scenarioInput.memory_text || null,
                     word_count: wordCount,
                     metrics: {
                         create: {
