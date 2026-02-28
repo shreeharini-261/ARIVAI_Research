@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Scenario {
+  id                  String         @id @default(uuid())
+  phase               String
+  mood                String
+  energy              Int
+  sleep               Int
+  stress              Int
+  symptoms_json       Json
+  cycle_day           Int?
+  cycle_length        Int            @default(28)
+  previous_sleep_avg  Int?
+  previous_stress_avg Int?
+  created_at          DateTime       @default(now())
+  
+  state_vector        StateVector?
+  generations         Generation[]
+}
+
+model StateVector {
+  id                      String   @id @default(uuid())
+  scenario_id             String   @unique
+  scenario                Scenario @relation(fields: [scenario_id], references: [id], onDelete: Cascade)
+  estrogen_influence      Float
+  progesterone_influence  Float
+  energy_stability        Float
+  emotional_volatility    Float
+  inflammation_likelihood Float
+  formula_version         String   @default("v1")
+  computed_at             DateTime @default(now())
+}
+
+model Generation {
+  id              String             @id @default(uuid())
+  scenario_id     String
+  scenario        Scenario           @relation(fields: [scenario_id], references: [id], onDelete: Cascade)
+  strategy_type   String
+  model_name      String
+  temperature     Float
+  top_p           Float?
+  max_tokens      Int?
+  seed            Int?
+  prompt_text     String
+  output_text     String
+  word_count      Int
+  created_at      DateTime           @default(now())
+  
+  evaluations     Evaluation[]
+  metrics         AutomatedMetric?
+}
+
+model Evaluation {
+  id                         String     @id @default(uuid())
+  generation_id              String
+  generation                 Generation @relation(fields: [generation_id], references: [id], onDelete: Cascade)
+  evaluator_id               String
+  relevance_score            Int
+  specificity_score          Int
+  biological_grounding_score Int
+  personalization_score      Int
+  safety_score               Int
+  timestamp                  DateTime   @default(now())
+}
+
+model AutomatedMetric {
+  id                     String     @id @default(uuid())
+  generation_id          String     @unique
+  generation             Generation @relation(fields: [generation_id], references: [id], onDelete: Cascade)
+  semantic_distance      Float?
+  alignment_score        Float?
+  violation_flag         Boolean?
+  sentiment_score        Float?
+  baseline_generation_id String?
+}
