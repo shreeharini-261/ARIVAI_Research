@@ -43,6 +43,7 @@ export default function Home() {
         energyStability: 0,
         emotionalVolatility: 0,
         inflammationLikelihood: 0,
+        gastrointestinalDistress: 0,
     });
 
     const [isGenerating, setIsGenerating] = useState(false);
@@ -75,12 +76,21 @@ export default function Home() {
         }
 
         const clamp = (v: number) => Math.max(0, Math.min(1, v));
+
+        const giCount = (scenarioInput.symptoms.nausea || 0) * 0.25 +
+            (scenarioInput.symptoms.vomiting || 0) * 0.25 +
+            (scenarioInput.symptoms.diarrhea || 0) * 0.25 +
+            (scenarioInput.symptoms.constipation || 0) * 0.25;
+        const sevN = scenarioInput.symptom_severity / 3;
+        const gi = 0.6 * giCount + 0.4 * sevN;
+
         setVector({
             estrogenInfluence: clamp(estrogen),
             progesteroneInfluence: clamp(progesterone),
             energyStability: clamp(es),
             emotionalVolatility: clamp(ve),
-            inflammationLikelihood: clamp(infl)
+            inflammationLikelihood: clamp(infl),
+            gastrointestinalDistress: clamp(gi)
         });
     }, [scenarioInput]);
 

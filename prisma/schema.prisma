@@ -36,7 +36,7 @@ model StateVector {
   energy_stability        Float
   emotional_volatility    Float
   inflammation_likelihood Float
-  gastrointestinal_distress Float
+  gastrointestinal_distress Float @default(0.0)
   formula_version         String   @default("v1")
   computed_at             DateTime @default(now())
 }
