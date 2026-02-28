@@ -109,31 +109,57 @@ export default function Home() {
         window.location.href = "/api/export";
     };
 
-    const [evaluation, setEvaluation] = useState({
-        relevanceScore: 3,
-        specificityScore: 3,
-        biologicalGroundingScore: 3,
-        personalizationScore: 3,
-        safetyScore: 5,
-    });
-    const [evalSubmitted, setEvalSubmitted] = useState(false);
+    const [evaluations, setEvaluations] = useState<Record<string, {
+        relevanceScore: number;
+        specificityScore: number;
+        biologicalGroundingScore: number;
+        personalizationScore: number;
+        safetyScore: number;
+    }>>({});
 
-    const submitEvaluation = async () => {
-        if (!result?.generationId) return;
+    const [evalSubmitted, setEvalSubmitted] = useState<Record<string, boolean>>({});
+
+    const handleEvaluationChange = (genId: string, metric: string, value: number) => {
+        setEvaluations(prev => ({
+            ...prev,
+            [genId]: {
+                ...(prev[genId] || {
+                    relevanceScore: 3,
+                    specificityScore: 3,
+                    biologicalGroundingScore: 3,
+                    personalizationScore: 3,
+                    safetyScore: 5
+                }),
+                [metric]: value
+            }
+        }));
+    };
+
+    const submitEvaluation = async (genId: string) => {
+        if (!genId) return;
+
+        const evalData = evaluations[genId] || {
+            relevanceScore: 3,
+            specificityScore: 3,
+            biologicalGroundingScore: 3,
+            personalizationScore: 3,
+            safetyScore: 5
+        };
+
         try {
             await fetch("/api/evaluate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    generationId: result.generationId,
-                    ...evaluation
+                    generationId: genId,
+                    ...evalData
                 })
             });
-            setEvalSubmitted(true);
+            setEvalSubmitted(prev => ({ ...prev, [genId]: true }));
         } catch (err) {
             console.error(err);
         }
-    }
+    };
 
     const handleSymptomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setScenarioInput({
@@ -381,6 +407,49 @@ export default function Home() {
                                             <div><strong>Sentiment Score:</strong> {resItem.metrics?.[0]?.sentiment_score || "0.0"}</div>
                                         </div>
                                     </div>
+
+                                    {/* Strategy Research Evaluator Input */}
+                                    <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px dashed rgba(255,255,255,0.1)" }}>
+                                        <h3 style={{ fontSize: "0.95rem", color: "var(--accent-pink)", marginBottom: "12px" }}>Evaluate this Generation (1-5)</h3>
+                                        {!evalSubmitted[resItem.generationId] ? (
+                                            <>
+                                                <div className="evaluator-grid" style={{ gap: "12px" }}>
+                                                    {[
+                                                        { label: "Relevance", key: "relevanceScore" as const },
+                                                        { label: "Specificity", key: "specificityScore" as const },
+                                                        { label: "Bio Grounding", key: "biologicalGroundingScore" as const },
+                                                        { label: "Personalization", key: "personalizationScore" as const },
+                                                        { label: "Safety", key: "safetyScore" as const },
+                                                    ].map(metric => {
+                                                        const currentEvals = evaluations[resItem.generationId] || { relevanceScore: 3, specificityScore: 3, biologicalGroundingScore: 3, personalizationScore: 3, safetyScore: 5 };
+                                                        return (
+                                                            <div key={metric.key} className="form-group" style={{ marginBottom: 0 }}>
+                                                                <label className="form-label" style={{ fontSize: "0.75rem" }}>{metric.label}: {currentEvals[metric.key]}</label>
+                                                                <input type="range" className="form-range" min="1" max="5"
+                                                                    value={currentEvals[metric.key]}
+                                                                    onChange={e => handleEvaluationChange(resItem.generationId, metric.key, parseInt(e.target.value))}
+                                                                />
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {evaluations[resItem.generationId] && (
+                                                    <div style={{ marginTop: "12px", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                                                        <em>Avg Score: {((evaluations[resItem.generationId].relevanceScore + evaluations[resItem.generationId].specificityScore + evaluations[resItem.generationId].biologicalGroundingScore + evaluations[resItem.generationId].personalizationScore + evaluations[resItem.generationId].safetyScore) / 5).toFixed(1)}/5</em>
+                                                    </div>
+                                                )}
+
+                                                <button className="btn-secondary" style={{ marginTop: "12px", borderColor: "var(--accent-pink)", color: "var(--accent-pink)", padding: "6px 12px", fontSize: "0.85rem" }} onClick={() => submitEvaluation(resItem.generationId)}>
+                                                    Submit Evaluation Log
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <div style={{ color: "#10b981", display: "flex", alignItems: "center", gap: "8px", fontSize: "0.85rem" }}>
+                                                <CheckCircle size={16} /> Independent evaluation successfully logged for {resItem.strategy}.
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )) : (
                                 <>
@@ -388,7 +457,6 @@ export default function Home() {
                                         {result.output}
                                     </div>
 
-                                    {/* Panel E: Automated Metrics */}
                                     <div style={{ marginTop: "20px", padding: "16px", background: "rgba(0,0,0,0.2)", borderRadius: "8px", border: "1px solid var(--panel-border)" }}>
                                         <h3 style={{ fontSize: "1rem", color: "var(--primary)", marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px" }}><FileText size={16} /> E. Output Analytics</h3>
                                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem", color: "var(--text-muted)" }}>
@@ -398,40 +466,51 @@ export default function Home() {
                                             <div><strong>Sentiment Score:</strong> {result.metrics?.sentiment_score || "0.0"}</div>
                                         </div>
                                     </div>
+
+                                    {/* Single Research Evaluator Input */}
+                                    <div style={{ marginTop: "20px", paddingTop: "16px" }}>
+                                        <h3 style={{ fontSize: "1rem", color: "var(--accent-pink)", marginBottom: "12px" }}>Research Blinding Evaluation (1-5)</h3>
+                                        {!evalSubmitted[result.generationId] ? (
+                                            <>
+                                                <div className="evaluator-grid">
+                                                    {[
+                                                        { label: "Relevance", key: "relevanceScore" as const },
+                                                        { label: "Specificity", key: "specificityScore" as const },
+                                                        { label: "Bio Grounding", key: "biologicalGroundingScore" as const },
+                                                        { label: "Personalization", key: "personalizationScore" as const },
+                                                        { label: "Safety", key: "safetyScore" as const },
+                                                    ].map(metric => {
+                                                        const currentEvals = evaluations[result.generationId] || { relevanceScore: 3, specificityScore: 3, biologicalGroundingScore: 3, personalizationScore: 3, safetyScore: 5 };
+                                                        return (
+                                                            <div key={metric.key} className="form-group" style={{ marginBottom: 0 }}>
+                                                                <label className="form-label">{metric.label}: {currentEvals[metric.key]}</label>
+                                                                <input type="range" className="form-range" min="1" max="5"
+                                                                    value={currentEvals[metric.key]}
+                                                                    onChange={e => handleEvaluationChange(result.generationId, metric.key, parseInt(e.target.value))}
+                                                                />
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {evaluations[result.generationId] && (
+                                                    <div style={{ marginTop: "8px", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                                                        <em>Avg Score: {((evaluations[result.generationId].relevanceScore + evaluations[result.generationId].specificityScore + evaluations[result.generationId].biologicalGroundingScore + evaluations[result.generationId].personalizationScore + evaluations[result.generationId].safetyScore) / 5).toFixed(1)}/5</em>
+                                                    </div>
+                                                )}
+
+                                                <button className="btn-secondary" style={{ marginTop: "16px", borderColor: "var(--accent-pink)", color: "var(--accent-pink)" }} onClick={() => submitEvaluation(result.generationId)}>
+                                                    Submit Evaluation Log for {result.generationId.slice(0, 8)}...
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <div style={{ color: "#10b981", display: "flex", alignItems: "center", gap: "8px", fontSize: "0.9rem" }}>
+                                                <CheckCircle size={16} /> Evaluation successfully stored in database.
+                                            </div>
+                                        )}
+                                    </div>
                                 </>
                             )}
-
-                            {/* Research Evaluator Input */}
-                            <div style={{ marginTop: "20px", paddingTop: "16px" }}>
-                                <h3 style={{ fontSize: "1rem", color: "var(--accent-pink)", marginBottom: "12px" }}>Research Blinding Evaluation (1-5)</h3>
-                                {!evalSubmitted ? (
-                                    <>
-                                        <div className="evaluator-grid">
-                                            {[
-                                                { label: "Relevance", key: "relevanceScore" },
-                                                { label: "Specificity", key: "specificityScore" },
-                                                { label: "Bio Grounding", key: "biologicalGroundingScore" },
-                                                { label: "Personalization", key: "personalizationScore" },
-                                            ].map(metric => (
-                                                <div key={metric.key} className="form-group" style={{ marginBottom: 0 }}>
-                                                    <label className="form-label">{metric.label}: {evaluation[metric.key as keyof typeof evaluation]}</label>
-                                                    <input type="range" className="form-range" min="1" max="5"
-                                                        value={evaluation[metric.key as keyof typeof evaluation]}
-                                                        onChange={e => setEvaluation({ ...evaluation, [metric.key]: parseInt(e.target.value) })}
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <button className="btn-secondary" style={{ marginTop: "16px", borderColor: "var(--accent-pink)", color: "var(--accent-pink)" }} onClick={submitEvaluation}>
-                                            Submit Evaluation Log for first generation ID
-                                        </button>
-                                    </>
-                                ) : (
-                                    <div style={{ color: "#10b981", display: "flex", alignItems: "center", gap: "8px", fontSize: "0.9rem" }}>
-                                        <CheckCircle size={16} /> Evaluation successfully stored in database.
-                                    </div>
-                                )}
-                            </div>
                         </>
                     ) : (
                         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: "0.95rem" }}>
