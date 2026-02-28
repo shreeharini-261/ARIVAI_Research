@@ -176,7 +176,8 @@ export default function Home() {
         progesteroneInfluence: "#8b5cf6",
         energyStability: "#10b981",
         emotionalVolatility: "#f59e0b",
-        inflammationLikelihood: "#ef4444"
+        inflammationLikelihood: "#ef4444",
+        gastrointestinalDistress: "#6366f1",
     };
 
     return (

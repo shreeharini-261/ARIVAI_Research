@@ -33,7 +33,8 @@ export async function POST(req: NextRequest) {
                         energy_stability: vector.energyStability,
                         emotional_volatility: vector.emotionalVolatility,
                         inflammation_likelihood: vector.inflammationLikelihood,
-                        formula_version: "v1"
+                        gastrointestinal_distress: vector.gastrointestinalDistress,
+                        formula_version: "v2"
                     }
                 },
             }
@@ -100,6 +101,7 @@ Progesterone Influence: ${vector.progesteroneInfluence.toFixed(3)}
 Energy Stability: ${vector.energyStability.toFixed(3)}
 Emotional Volatility: ${vector.emotionalVolatility.toFixed(3)}
 Inflammation Likelihood: ${vector.inflammationLikelihood.toFixed(3)}
+Gastrointestinal Distress: ${vector.gastrointestinalDistress.toFixed(3)}
 
 Provide:
 1. Brief physiological interpretation (2–3 sentences).

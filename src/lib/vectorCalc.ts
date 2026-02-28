@@ -33,6 +33,7 @@ export interface ScenarioInput {
     };
     symptom_severity?: number; // 0-3
     memory_text?: string;
+    cycleDay?: number;
 }
 
 export interface StateVector {
@@ -41,6 +42,7 @@ export interface StateVector {
     energyStability: number;
     emotionalVolatility: number;
     inflammationLikelihood: number;
+    gastrointestinalDistress: number;
 }
 
 export interface VectorCalculationResult {
@@ -52,62 +54,81 @@ function clamp(value: number): number {
 }
 
 export function computeStateVector(input: ScenarioInput): VectorCalculationResult {
-    const E = input.energy / 10;
-    const S = input.sleep / 10;
-    const St = input.stress / 10;
+    // 1. Normalize All Inputs
+    const E_n = input.energy / 10;
+    const S_n = input.sleep / 10;
+    const Str_n = input.stress / 10;
+    const Sev_n = (input.symptom_severity || 0) / 3;
 
-    let inflammation = 0;
-    if (input.symptoms) {
-        inflammation =
-            (input.symptoms.cramps || 0) * 0.3 +
-            (input.symptoms.back_pain || 0) * 0.2 +
-            (input.symptoms.headache || 0) * 0.2 +
-            (input.symptoms.bloating || 0) * 0.1 +
-            (input.symptoms.joint_pain || 0) * 0.1 +
-            (input.symptoms.breast_tenderness || 0) * 0.1;
-    }
+    // 2. Hormone Influence Modeling
+    const d = input.cycleDay || 14; // Default to mid-cycle if missing
+    let E_estrogen = 0;
+    let P_prog = 0;
 
-    let moodScore = 0.4;
+    // Estrogen Piecewise
+    if (d >= 1 && d <= 4) E_estrogen = 0.2;
+    else if (d >= 5 && d <= 13) E_estrogen = 0.3 + 0.05 * (d - 5);
+    else if (d >= 14 && d <= 16) E_estrogen = 0.9;
+    else if (d >= 17 && d <= 24) E_estrogen = 0.7;
+    else if (d >= 25 && d <= 28) E_estrogen = 0.4;
+    else E_estrogen = 0.5; // fallback
+
+    // Progesterone Piecewise
+    if (d >= 1 && d <= 13) P_prog = 0.2;
+    else if (d >= 14 && d <= 16) P_prog = 0.3;
+    else if (d >= 17 && d <= 24) P_prog = 0.5 + 0.05 * (d - 17);
+    else if (d >= 25 && d <= 28) P_prog = 0.6;
+    else P_prog = 0.2; // fallback
+
+    // 3. Energy Stability Vector
+    const EnergyStability = 0.5 * E_n + 0.3 * S_n + 0.2 * (1 - Str_n);
+
+    // 4. Emotional Volatility Vector
+    let Mood_n = 0.4;
     switch (input.mood) {
-        case 'Calm': moodScore = 0.2; break;
-        case 'Neutral': moodScore = 0.4; break;
-        case 'Irritable': moodScore = 0.7; break;
-        case 'Severe mood swings': moodScore = 0.9; break;
+        case 'Calm': Mood_n = 0.2; break; // Approximated calm
+        case 'Neutral': Mood_n = 0.2; break;
+        case 'Irritable': Mood_n = 0.6; break;
+        case 'Severe mood swings': Mood_n = 1.0; break;
     }
+    // Check specific symptoms for mood overrides if checked
+    if (input.symptoms?.mood_swings) Mood_n = Math.max(Mood_n, 0.8);
+    if (input.symptoms?.anxiety) Mood_n = Math.max(Mood_n, 0.7);
+    if (input.symptoms?.low_motivation) Mood_n = Math.max(Mood_n, 0.5);
 
-    let energyStability = 0.6 * E + 0.4 * S - 0.3 * St;
-    let emotionalVolatility = moodScore + (1 - S) * 0.3;
+    const EmotionalVolatility = 0.5 * Str_n + 0.3 * Sev_n + 0.2 * Mood_n;
 
-    // Hormones
-    let estrogen = 0;
-    let progesterone = 0;
-
-    switch (input.phase) {
-        case 'Menstrual':
-            estrogen = 0.2;
-            progesterone = 0.2;
-            break;
-        case 'Follicular':
-            estrogen = 0.6;
-            progesterone = 0.3;
-            break;
-        case 'Ovulatory':
-            estrogen = 0.9;
-            progesterone = 0.2;
-            break;
-        case 'Luteal':
-            estrogen = 0.5;
-            progesterone = 0.8;
-            break;
+    // 5. Inflammation Likelihood Vector
+    let inflamCountVal = 0;
+    if (input.symptoms) {
+        inflamCountVal += (input.symptoms.cramps || 0) ? 1 : 0;
+        inflamCountVal += (input.symptoms.back_pain || 0) ? 1 : 0;
+        inflamCountVal += (input.symptoms.joint_pain || 0) ? 1 : 0;
+        inflamCountVal += (input.symptoms.headache || 0) ? 1 : 0;
+        inflamCountVal += (input.symptoms.breast_tenderness || 0) ? 1 : 0;
     }
+    const InflamCount = inflamCountVal / 5;
+    const InflammationLikelihood = 0.5 * Sev_n + 0.3 * InflamCount + 0.2 * Str_n;
+
+    // 6. Gastrointestinal Distress
+    let giCountVal = 0;
+    if (input.symptoms) {
+        giCountVal += (input.symptoms.nausea || 0) ? 1 : 0;
+        giCountVal += (input.symptoms.vomiting || 0) ? 1 : 0;
+        giCountVal += (input.symptoms.diarrhea || 0) ? 1 : 0;
+        giCountVal += (input.symptoms.constipation || 0) ? 1 : 0;
+    }
+    const GIcount = giCountVal / 4;
+    const GastroDistress = 0.6 * GIcount + 0.4 * Sev_n;
 
     return {
         vector: {
-            estrogenInfluence: clamp(estrogen),
-            progesteroneInfluence: clamp(progesterone),
-            energyStability: clamp(energyStability),
-            emotionalVolatility: clamp(emotionalVolatility),
-            inflammationLikelihood: clamp(inflammation),
+            estrogenInfluence: clamp(E_estrogen),
+            progesteroneInfluence: clamp(P_prog),
+            energyStability: clamp(EnergyStability),
+            emotionalVolatility: clamp(EmotionalVolatility),
+            inflammationLikelihood: clamp(InflammationLikelihood),
+            gastrointestinalDistress: clamp(GastroDistress)
         }
     };
 }
