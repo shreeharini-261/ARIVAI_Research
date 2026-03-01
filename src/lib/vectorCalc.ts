@@ -1,6 +1,6 @@
 export interface ScenarioInput {
     phase: 'Menstrual' | 'Follicular' | 'Ovulatory' | 'Luteal';
-    mood: 'Calm' | 'Neutral' | 'Irritable' | 'Severe mood swings';
+    mood: 'Calm' | 'Neutral' | 'Irritable' | 'Mood Swings' | 'Anxiety' | 'Low Motivation' | 'Motivated' | string;
     energy: number; // 1-10
     sleep: number; // 1-10
     stress: number; // 1-10
@@ -81,22 +81,30 @@ export function computeStateVector(input: ScenarioInput): VectorCalculationResul
     else P_prog = 0.2; // fallback
 
     // 3. Energy Stability Vector
-    const EnergyStability = 0.5 * E_n + 0.3 * S_n + 0.2 * (1 - Str_n);
+    let EnergyStability = 0.5 * E_n + 0.3 * S_n + 0.2 * (1 - Str_n);
 
     // 4. Emotional Volatility Vector
     let Mood_n = 0.4;
     switch (input.mood) {
-        case 'Calm': Mood_n = 0.2; break; // Approximated calm
+        case 'Calm': Mood_n = 0.1; break;
         case 'Neutral': Mood_n = 0.2; break;
+        case 'Motivated': Mood_n = 0.15; break;
+        case 'Low Motivation': Mood_n = 0.5; break;
         case 'Irritable': Mood_n = 0.6; break;
-        case 'Severe mood swings': Mood_n = 1.0; break;
+        case 'Anxiety': Mood_n = 0.75; break;
+        case 'Mood Swings': Mood_n = 0.85; break;
     }
     // Check specific symptoms for mood overrides if checked
-    if (input.symptoms?.mood_swings) Mood_n = Math.max(Mood_n, 0.8);
-    if (input.symptoms?.anxiety) Mood_n = Math.max(Mood_n, 0.7);
+    if (input.symptoms?.mood_swings) Mood_n = Math.max(Mood_n, 0.85);
+    if (input.symptoms?.anxiety) Mood_n = Math.max(Mood_n, 0.75);
     if (input.symptoms?.low_motivation) Mood_n = Math.max(Mood_n, 0.5);
 
     const EmotionalVolatility = 0.5 * Str_n + 0.3 * Sev_n + 0.2 * Mood_n;
+
+    // Optional (Small Positive Stability Effect)
+    if (input.mood === 'Motivated') {
+        EnergyStability += 0.05;
+    }
 
     // 5. Inflammation Likelihood Vector
     let inflamCountVal = 0;

@@ -56,16 +56,26 @@ export default function Home() {
         const S = scenarioInput.sleep / 10;
         const St = scenarioInput.stress / 10;
         const infl = (scenarioInput.symptoms.cramps || 0) * 0.3 + (scenarioInput.symptoms.back_pain || 0) * 0.2 + (scenarioInput.symptoms.headache || 0) * 0.2 + (scenarioInput.symptoms.bloating || 0) * 0.1 + (scenarioInput.symptoms.joint_pain || 0) * 0.1 + (scenarioInput.symptoms.breast_tenderness || 0) * 0.1;
-        const es = 0.6 * E + 0.4 * S - 0.3 * St;
+        const sevN = scenarioInput.symptom_severity / 3;
+
+        let es = 0.5 * E + 0.3 * S + 0.2 * (1 - St);
 
         let moodScore = 0.4;
         switch (scenarioInput.mood) {
-            case "Calm": moodScore = 0.2; break;
-            case "Neutral": moodScore = 0.4; break;
-            case "Irritable": moodScore = 0.7; break;
-            case "Severe mood swings": moodScore = 0.9; break;
+            case "Calm": moodScore = 0.1; break;
+            case "Neutral": moodScore = 0.2; break;
+            case "Motivated": moodScore = 0.15; break;
+            case "Low Motivation": moodScore = 0.5; break;
+            case "Irritable": moodScore = 0.6; break;
+            case "Anxiety": moodScore = 0.75; break;
+            case "Mood Swings": moodScore = 0.85; break;
         }
-        const ve = moodScore + (1 - S) * 0.3;
+
+        if (scenarioInput.mood === "Motivated") {
+            es += 0.05;
+        }
+
+        const ve = 0.5 * St + 0.3 * sevN + 0.2 * moodScore;
 
         let estrogen = 0; let progesterone = 0;
         switch (scenarioInput.phase) {
@@ -81,7 +91,6 @@ export default function Home() {
             (scenarioInput.symptoms.vomiting || 0) * 0.25 +
             (scenarioInput.symptoms.diarrhea || 0) * 0.25 +
             (scenarioInput.symptoms.constipation || 0) * 0.25;
-        const sevN = scenarioInput.symptom_severity / 3;
         const gi = 0.6 * giCount + 0.4 * sevN;
 
         setVector({
@@ -229,7 +238,10 @@ export default function Home() {
                                 <option>Calm</option>
                                 <option>Neutral</option>
                                 <option>Irritable</option>
-                                <option>Severe mood swings</option>
+                                <option>Mood Swings</option>
+                                <option>Anxiety</option>
+                                <option>Low Motivation</option>
+                                <option>Motivated</option>
                             </select>
                         </div>
                     </div>
